@@ -1,0 +1,13 @@
+---
+# Параметры 1С
+1c_group: "grp1cv8"
+1c_user: "usr1cv8"
+1c_home: "/home/usr1cv8"
+1c_platform_path: "/opt/1cv8/x86_64/{{ platform_version }}"
+
+# Порты для сервисов 1С
+ragent_port: 1540
+rmngr_port: 1541
+rphost_start_port: 1560
+rphost_end_port: 1591
+ras_port: 1545 

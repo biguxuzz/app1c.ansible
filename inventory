@@ -1,0 +1,5 @@
+[postgres]
+localhost ansible_connection=local
+
+[one_c_server]
+localhost ansible_connection=local 

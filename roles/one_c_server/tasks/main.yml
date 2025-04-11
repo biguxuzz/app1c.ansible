@@ -1,0 +1,110 @@
+---
+- name: Установка необходимых пакетов
+  apt:
+    name:
+      - wget
+      - libsm6
+      - libwebkit2gtk-4.0-37
+    state: present
+    update_cache: yes
+
+- name: Установка платформы 1С
+  block:
+    - name: Скачивание пакетов 1С
+      get_url:
+        url: 'https://1cit.com/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_amd64.deb' 
+        dest: '/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_amd64.deb'
+      loop:
+        - common
+        - common-nls
+        - server
+        - server-nls
+        - ws
+        - ws-nls
+        - client
+        - client-nls
+
+    - name: Установка пакетов 1С
+      apt:
+        deb: '/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_amd64.deb'
+        state: present
+      loop:
+        - common
+        - common-nls
+        - server
+        - server-nls
+        - ws
+        - ws-nls
+        - client
+        - client-nls
+
+- name: Настройка службы RAS
+  block:
+    - name: Копирование службы RAS
+      copy:
+        src: "{{ one_c_platform_path }}/ras-{{ platform_version }}.service"
+        dest: "{{ one_c_platform_path }}/ras-{{ platform_version }}@.service"
+        remote_src: yes
+        mode: '0644'
+
+    - name: Изменение описания службы RAS
+      replace:
+        path: "{{ one_c_platform_path }}/ras-{{ platform_version }}@.service"
+        regexp: 'Description=1C:Enterprise Remote Administration Server 8.3 \({{ platform_version }}\)'
+        replace: 'Description=1C:Enterprise Remote Administration Server 8.3 ({{ platform_version }}) (%I)'
+
+    - name: Линковка RAS
+      command: systemctl link /opt/1cv8/x86_64/{{ platform_version }}/ras-{{ platform_version }}@.service
+      args:
+        creates: /etc/systemd/system/ras-{{ platform_version }}@.service
+
+    - name: Создание директории для конфигурации службы RAS
+      file:
+        path: /etc/systemd/system/ras-{{ platform_version }}@debug_{{ ragent_port }}.service.d
+        state: directory
+        mode: '0755'
+
+    - name: Создание конфигурации службы RAS
+      template:
+        src: ras.override.conf.j2
+        dest: /etc/systemd/system/ras-{{ platform_version }}@debug_{{ ragent_port }}.service.d/override.conf
+        mode: '0644'
+
+- name: Линковка служб 1С
+  block:
+    - name: Линковка сервера 1С
+      command: systemctl link /opt/1cv8/x86_64/{{ platform_version }}/srv1cv8-{{ platform_version }}@.service
+      args:
+        creates: /etc/systemd/system/srv1cv8-{{ platform_version }}@.service
+
+    - name: Создание директории для конфигурации службы 1С
+      file:
+        path: /etc/systemd/system/srv1cv8-{{ platform_version }}@debug_{{ ragent_port }}.service.d
+        state: directory
+        mode: '0755'
+
+- name: Настройка службы 1С
+  block:
+    - name: Создание конфигурации службы 1С
+      template:
+        src: srv1cv8.override.conf.j2
+        dest: /etc/systemd/system/srv1cv8-{{ platform_version }}@debug_{{ ragent_port }}.service.d/override.conf
+        mode: '0644'
+
+    - name: Перезагрузка systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Включение и запуск службы 1С
+      systemd:
+        name: srv1cv8-{{ platform_version }}@debug_{{ ragent_port }}
+        state: started
+        enabled: yes
+
+    - name: Включение и запуск службы RAS
+      systemd:
+        name: ras-{{ platform_version }}@debug_{{ ragent_port }}
+        state: started
+        enabled: yes
+
+ 

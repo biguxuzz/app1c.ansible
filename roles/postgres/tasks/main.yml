@@ -1,0 +1,28 @@
+---
+- name: Установка необходимых пакетов
+  apt:
+    name:
+      - wget
+      - gnupg2
+      - lsb-release
+    state: present
+    update_cache: yes
+
+- name: Добавление репозитория Postgres Pro
+  shell: |
+    wget -O - https://repo.postgrespro.ru/1c-17/keys/ACCC4CF8.asc | apt-key add -
+    echo "deb https://repo.postgrespro.ru/1c-17/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/pgdg.list
+  args:
+    creates: /etc/apt/sources.list.d/pgdg.list
+
+- name: Установка Postgres Pro 1C
+  apt:
+    name: postgrespro-1c-17
+    state: present
+    update_cache: yes
+
+- name: Запуск и включение службы PostgreSQL
+  systemd:
+    name: postgresql
+    state: started
+    enabled: yes 
