@@ -118,6 +118,8 @@
       retries: 12
       delay: 5
       when: not _initdb_signal.stat.exists
+      become: true
+      become_user: "{{ postgres_user }}"
       
     - name: Настройка порта в postgresql.conf
       ansible.builtin.lineinfile:
