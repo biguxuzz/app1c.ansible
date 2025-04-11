@@ -54,7 +54,7 @@
         replace: 'Description=1C:Enterprise Remote Administration Server 8.3 ({{ platform_version }}) (%I)'
 
     - name: Линковка RAS
-      command: systemctl link /opt/1cv8/x86_64/{{ platform_version }}/ras-{{ platform_version }}@.service
+      command: systemctl link {{ one_c_platform_path }}/ras-{{ platform_version }}@.service
       args:
         creates: /etc/systemd/system/ras-{{ platform_version }}@.service
 
@@ -73,7 +73,7 @@
 - name: Линковка служб 1С
   block:
     - name: Линковка сервера 1С
-      command: systemctl link /opt/1cv8/x86_64/{{ platform_version }}/srv1cv8-{{ platform_version }}@.service
+      command: systemctl link {{ one_c_platform_path }}/srv1cv8-{{ platform_version }}@.service
       args:
         creates: /etc/systemd/system/srv1cv8-{{ platform_version }}@.service
 

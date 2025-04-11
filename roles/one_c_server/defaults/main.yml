@@ -3,7 +3,7 @@
 1c_group: "grp1cv8"
 1c_user: "usr1cv8"
 1c_home: "/home/usr1cv8"
-1c_platform_path: "/opt/1cv8/x86_64/{{ platform_version }}"
+one_c_platform_path: "/opt/1cv8/x86_64/{{ platform_version }}"
 
 # Порты для сервисов 1С
 ragent_port: 1540
