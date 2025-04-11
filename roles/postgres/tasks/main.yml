@@ -10,6 +10,17 @@
 
 - name: Установка Postgres Pro 1C
   block:
+    - name: Проверка существования репозитория
+      stat:
+        path: /etc/apt/sources.list.d/postgresql-1c-{{ postgres_version }}.list
+      register: repo_file
+
+    - name: Удаление существующего репозитория
+      file:
+        path: /etc/apt/sources.list.d/postgresql-1c-{{ postgres_version }}.list
+        state: absent
+      when: repo_file.stat.exists
+
     - name: Скачивание скрипта репозитория
       get_url:
         url: https://repo.postgrespro.ru/1c/1c-{{ postgres_version }}/keys/pgpro-repo-add.sh
