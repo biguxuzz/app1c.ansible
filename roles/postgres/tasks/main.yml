@@ -92,14 +92,25 @@
       register: _initdb_signal
 
     - name: Инициализация базы данных PostgreSQL
-      ansible.builtin.shell: >
+      ansible.builtin.shell: |
         if [ ! -f /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION ]; then
-          timeout 60 /opt/pgpro/1c-{{ postgres_version }}/bin/initdb
-          --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
-          --locale="ru_RU.UTF-8"
-          --no-sync
-          --encoding="UTF8"
-          --set port={{ postgres_port }}
+          echo "Начинаю инициализацию базы данных..."
+          /usr/bin/timeout 60 /opt/pgpro/1c-{{ postgres_version }}/bin/initdb \
+            --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }} \
+            --locale="ru_RU.UTF-8" \
+            --no-sync \
+            --encoding="UTF8" \
+            --set port={{ postgres_port }} 2>&1
+          RESULT=$?
+          if [ $RESULT -eq 0 ]; then
+            echo "Инициализация базы данных успешно завершена."
+          elif [ $RESULT -eq 124 ]; then
+            echo "Превышено время ожидания инициализации базы данных (60 секунд)."
+            exit 1
+          else
+            echo "Ошибка инициализации базы данных с кодом $RESULT."
+            exit $RESULT
+          fi
         else
           echo "База данных уже существует"
         fi
