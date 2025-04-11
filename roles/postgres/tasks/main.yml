@@ -93,10 +93,6 @@
         else
           echo "База данных уже существует на порту {{ postgres_port }}"
         fi
-      become_user: "{{ postgres_user }}"
-      changed_when: false
-      register: init_result
-      failed_when: false
 
     - name: Создание директории для конфигурации службы Postgres Pro 1C
       file:
