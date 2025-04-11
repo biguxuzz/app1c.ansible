@@ -98,12 +98,26 @@
         --locale="ru_RU.UTF-8"
         --no-sync
         --encoding="UTF8"
-        --set port={{ postgres_port }}
+        --auth-host=scram-sha-256
+        --auth-local=scram-sha-256
+        -A
+        -E
       become: true
       become_user: "{{ postgres_user }}"
       register: _initdb_exec
       changed_when: _initdb_exec.rc == 0
       when: not _initdb_signal.stat.exists
+      async: 60
+      poll: 5
+
+    - name: Настройка порта в postgresql.conf
+      ansible.builtin.lineinfile:
+        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/postgresql.conf
+        regexp: '^#?port\s*='
+        line: "port = {{ postgres_port }}"
+      become: true
+      become_user: "{{ postgres_user }}"
+      when: not _initdb_signal.stat.exists or _initdb_exec is changed
 
     - name: Создание директории для конфигурации службы Postgres Pro 1C
       file:
