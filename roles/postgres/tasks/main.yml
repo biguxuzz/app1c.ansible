@@ -91,35 +91,32 @@
         path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
       register: _initdb_signal
 
-    - name: Создание скрипта инициализации базы данных
-      ansible.builtin.copy:
-        dest: /tmp/init_postgres_{{ postgres_port }}.sh
-        content: |
-          #!/bin/bash
-          set -e
-          set -x
-          if [ ! -f /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION ]; then
-            echo "Начинаю инициализацию базы данных..."
-            /opt/pgpro/1c-{{ postgres_version }}/bin/initdb \
-              --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }} \
-              --locale="ru_RU.UTF-8" \
-              --no-sync \
-              --encoding="UTF8" \
-              --set port={{ postgres_port }}
-            echo "Инициализация базы данных успешно завершена."
-          else
-            echo "База данных уже существует"
-          fi
-        mode: '0755'
-        owner: "{{ postgres_user }}"
-        group: "{{ postgres_group }}"
+    - name: Инициализация базы данных PostgreSQL без become_user
+      ansible.builtin.command: >
+        /opt/pgpro/1c-{{ postgres_version }}/bin/initdb
+        --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+        --locale="ru_RU.UTF-8"
+        --no-sync
+        --encoding="UTF8"
+        --auth=trust
+        --username={{ postgres_user }}
+      register: _initdb_exec
       when: not _initdb_signal.stat.exists
 
-    - name: Выполнение скрипта инициализации базы данных
-      ansible.builtin.command: /tmp/init_postgres_{{ postgres_port }}.sh
-      become: true
-      become_user: "{{ postgres_user }}"
-      register: _initdb_exec
+    - name: Настройка порта в postgresql.conf
+      ansible.builtin.lineinfile:
+        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/postgresql.conf
+        regexp: '^#?port\s*='
+        line: "port = {{ postgres_port }}"
+      when: not _initdb_signal.stat.exists
+
+    - name: Исправление прав доступа к базе данных PostgreSQL
+      ansible.builtin.file:
+        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+        owner: "{{ postgres_user }}"
+        group: "{{ postgres_group }}"
+        mode: '0700'
+        recurse: yes
       when: not _initdb_signal.stat.exists
 
     - name: Создание директории для конфигурации службы Postgres Pro 1C
