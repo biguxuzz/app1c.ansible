@@ -92,32 +92,23 @@
       register: _initdb_signal
 
     - name: Инициализация базы данных PostgreSQL
-      ansible.builtin.command: >
-        /opt/pgpro/1c-{{ postgres_version }}/bin/initdb
-        --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
-        --locale="ru_RU.UTF-8"
-        --no-sync
-        --encoding="UTF8"
-        --set port=5437
+      ansible.builtin.shell: >
+        if [ ! -f /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION ]; then
+          timeout 60 /opt/pgpro/1c-{{ postgres_version }}/bin/initdb
+          --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+          --locale="ru_RU.UTF-8"
+          --no-sync
+          --encoding="UTF8"
+          --set port={{ postgres_port }}
+        else
+          echo "База данных уже существует"
+        fi
       become: true
       become_user: "{{ postgres_user }}"
       register: _initdb_exec
       failed_when: false
       when: not _initdb_signal.stat.exists
-      async: 60
-      poll: 0
       
-    - name: Ожидание завершения инициализации базы данных
-      async_status:
-        jid: "{{ _initdb_exec.ansible_job_id }}"
-      register: job_result
-      until: job_result.finished
-      retries: 12
-      delay: 5
-      when: not _initdb_signal.stat.exists
-      become: true
-      become_user: "{{ postgres_user }}"
-
     - name: Создание директории для конфигурации службы Postgres Pro 1C
       file:
         path: /etc/systemd/system/postgrespro-1c-{{ postgres_version }}@{{ postgres_port }}.service.d
