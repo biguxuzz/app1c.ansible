@@ -119,4 +119,14 @@
       systemd:
         name: postgrespro-1c-{{ postgres_version }}@{{ postgres_port }}
         state: started
-        enabled: yes 
+        enabled: yes
+
+    - name: Проверка состояния сервиса Postgres Pro 1C
+      ansible.builtin.shell: >
+        systemctl show postgrespro-1c-{{ postgres_version }}@{{ postgres_port }} | grep -E 'Environment|ExecStart'
+      register: service_env
+      changed_when: false
+
+    - name: Вывод информации о переменных окружения сервиса
+      ansible.builtin.debug:
+        var: service_env.stdout_lines 
