@@ -1,0 +1,3 @@
+[Service]
+Environment=PG_SEPARATE_DATA=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+Environment=PGPORT={{ postgres_port }} 

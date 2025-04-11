@@ -8,18 +8,102 @@
     state: present
     update_cache: yes
 
-- name: Добавление репозитория Postgres Pro
-  shell: |
-    wget -O - https://repo.postgrespro.ru/1c-17/keys/ACCC4CF8.asc | apt-key add -
-    echo "deb https://repo.postgrespro.ru/1c-17/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/pgdg.list
-  args:
-    creates: /etc/apt/sources.list.d/pgdg.list
-
 - name: Установка Postgres Pro 1C
-  apt:
-    name: postgrespro-1c-17
-    state: present
-    update_cache: yes
+  block:
+    - name: Скачивание скрипта репозитория
+      get_url:
+        url: https://repo.postgrespro.ru/1c/1c-{{ postgres_version }}/keys/pgpro-repo-add.sh
+        dest: /tmp/pgpro-repo-add.sh
+        mode: '0755'
+
+    - name: Выполнение скрипта репозитория
+      command: sh /tmp/pgpro-repo-add.sh
+      args:
+        creates: /etc/apt/sources.list.d/pgpro-1c.list
+
+    - name: Установка Postgres Pro 1C
+      apt:
+        name: postgrespro-1c-{{ postgres_version }}
+        state: present
+
+    - name: Копирование службы Postgres Pro 1C
+      copy:
+        src: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}.service
+        dest: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
+        remote_src: yes
+        mode: '0644'
+
+    - name: Изменение описания службы Postgres Pro 1C
+      replace:
+        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
+        regexp: 'Description=Postgres Pro 1c {{ postgres_version }} database server'
+        replace: 'Description=Postgres Pro 1c {{ postgres_version }} database server (%i)'
+
+    - name: Добавление переменной PG_SEPARATE_DATA
+      replace:
+        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
+        regexp: 'EnvironmentFile=/etc/default/postgrespro-1c-{{ postgres_version }}'
+        replace: 'EnvironmentFile=/etc/default/postgrespro-1c-{{ postgres_version }}\nEnvironment=PG_SEPARATE_DATA=need_to_override'
+
+    - name: Изменение ExecStartPre и ExecStart
+      replace:
+        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
+        regexp: 'ExecStartPre=/opt/pgpro/1c-{{ postgres_version }}/bin/check-db-dir \\${PGDATA}'
+        replace: 'ExecStartPre=/opt/pgpro/1c-{{ postgres_version }}/bin/check-db-dir \\${PG_SEPARATE_DATA}'
+
+    - name: Изменение ExecStart
+      replace:
+        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
+        regexp: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D \\${PGDATA}'
+        replace: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D \\${PG_SEPARATE_DATA}'
+
+    - name: Изменение пользователя и группы в службе
+      replace:
+        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
+        regexp: 'User=postgres\nGroup=postgres'
+        replace: 'User={{ postgres_user }}\nGroup={{ postgres_group }}'
+
+    - name: Перезагрузка systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Создание директории для данных PostgreSQL
+      file:
+        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+        state: directory
+        owner: "{{ postgres_user }}"
+        group: "{{ postgres_group }}"
+        mode: '0700'
+
+    - name: Инициализация базы данных PostgreSQL
+      command: /opt/pgpro/1c-{{ postgres_version }}/bin/pg_ctl initdb -D /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+      become_user: "{{ postgres_user }}"
+      args:
+        creates: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
+
+    - name: Настройка порта в postgresql.conf
+      replace:
+        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/postgresql.conf
+        regexp: '^#?port\s*=.*'
+        replace: 'port = {{ postgres_port }}'
+
+    - name: Создание директории для конфигурации службы Postgres Pro 1C
+      file:
+        path: /etc/systemd/system/postgrespro-1c-{{ postgres_version }}@{{ postgres_port }}.service.d
+        state: directory
+        mode: '0755'
+
+    - name: Создание конфигурации службы Postgres Pro 1C
+      template:
+        src: postgres.override.conf.j2
+        dest: /etc/systemd/system/postgrespro-1c-{{ postgres_version }}@{{ postgres_port }}.service.d/override.conf
+        mode: '0644'
+
+    - name: Включение и запуск Postgres Pro 1C
+      systemd:
+        name: postgrespro-1c-{{ postgres_version }}@{{ postgres_port }}
+        state: started
+        enabled: yes
 
 - name: Запуск и включение службы PostgreSQL
   systemd:
