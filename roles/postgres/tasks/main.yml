@@ -86,17 +86,23 @@
         group: "{{ postgres_group }}"
         mode: '0700'
 
+    - name: Проверка существования базы данных
+      stat:
+        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
+      register: db_exists
+
     - name: Инициализация базы данных PostgreSQL
-      command: /opt/pgpro/1c-{{ postgres_version }}/bin/pg_ctl initdb -D /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+      command: /opt/pgpro/1c-{{ postgres_version }}/bin/initdb --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }} --set port={{ postgres_port }}
       become_user: "{{ postgres_user }}"
       args:
         creates: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
-
-    - name: Настройка порта в postgresql.conf
-      replace:
-        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/postgresql.conf
-        regexp: '^#?port\s*=.*'
-        replace: 'port = {{ postgres_port }}'
+      async: 60  # таймаут 1 минута
+      poll: 10    # проверка каждые 10 секунд
+      register: init_result
+      until: init_result is success
+      retries: 3
+      delay: 10
+      when: not db_exists.stat.exists
 
     - name: Создание директории для конфигурации службы Postgres Pro 1C
       file:
