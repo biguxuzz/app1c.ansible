@@ -91,32 +91,16 @@
         path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
       register: _initdb_signal
 
-    - name: Инициализация базы данных PostgreSQL без become_user
-      ansible.builtin.command: >
-        /opt/pgpro/1c-{{ postgres_version }}/bin/initdb
-        --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
-        --locale="ru_RU.UTF-8"
-        --no-sync
-        --encoding="UTF8"
-        --auth=trust
-        --username={{ postgres_user }}
+    - name: Инициализация базы данных PostgreSQL через su
+      ansible.builtin.shell: |
+        su - {{ postgres_user }} -c "/opt/pgpro/1c-{{ postgres_version }}/bin/initdb \
+          --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }} \
+          --locale=ru_RU.UTF-8 \
+          --no-sync \
+          --encoding=UTF8 \
+          --auth=trust \
+          --set port={{ postgres_port }}"
       register: _initdb_exec
-      when: not _initdb_signal.stat.exists
-
-    - name: Настройка порта в postgresql.conf
-      ansible.builtin.lineinfile:
-        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/postgresql.conf
-        regexp: '^#?port\s*='
-        line: "port = {{ postgres_port }}"
-      when: not _initdb_signal.stat.exists
-
-    - name: Исправление прав доступа к базе данных PostgreSQL
-      ansible.builtin.file:
-        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
-        owner: "{{ postgres_user }}"
-        group: "{{ postgres_group }}"
-        mode: '0700'
-        recurse: yes
       when: not _initdb_signal.stat.exists
 
     - name: Создание директории для конфигурации службы Postgres Pro 1C
