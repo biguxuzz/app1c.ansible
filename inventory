@@ -1,5 +1,11 @@
-[postgres]
-localhost ansible_connection=local
+[postgres:children]
+postgres_hosts
 
-[one_c_server]
-localhost ansible_connection=local 
+[postgres_hosts]
+postgres_local ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+[one_c_server:children]
+one_c_hosts
+
+[one_c_hosts]
+one_c_local ansible_connection=local ansible_python_interpreter=/usr/bin/python3 

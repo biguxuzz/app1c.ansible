@@ -31,19 +31,32 @@
 
 - Ubuntu 22.04
 - Ansible
+- Python 3
+- sudo права
 
 ## Настройка
 
-1. Отредактируйте файл `inventory`, если необходимо изменить конфигурацию локального хоста:
+1. Убедитесь, что у вас установлен Python 3:
+   ```bash
+   python3 --version
+   ```
+
+2. Установите необходимые пакеты:
+   ```bash
+   sudo apt update
+   sudo apt install -y python3 python3-pip
+   ```
+
+3. Отредактируйте файл `inventory`, если необходимо изменить конфигурацию локального хоста:
 ```ini
 [postgres]
-postgres_host ansible_host=your_postgres_host ansible_connection=ssh
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
 
 [one_c_server]
-1c_host ansible_host=your_1c_host ansible_connection=ssh
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
 ```
 
-2. При необходимости измените параметры в файлах:
+4. При необходимости измените параметры в файлах:
    - `roles/postgres/defaults/main.yml` - параметры PostgreSQL
    - `roles/one_c_server/defaults/main.yml` - параметры сервера 1С
    - `group_vars/all.yml` - общие параметры
@@ -58,7 +71,12 @@ postgres_host ansible_host=your_postgres_host ansible_connection=ssh
 
 2. Запустите playbook:
    ```bash
-   ansible-playbook site.yml --ask-become-pass
+   ansible-playbook site.yml --ask-become-pass -vv
+   ```
+
+   Если возникают проблемы с подключением, попробуйте:
+   ```bash
+   ansible-playbook site.yml --ask-become-pass -vv --connection=local
    ```
 
 ## Что устанавливается
@@ -94,7 +112,7 @@ systemctl status ras-8.3.26.1521@debug_1540
 Для установки только сервера 1С с измененными портами используйте следующую команду:
 
 ```bash
-ansible-playbook site.yml --limit one_c_server -e "ragent_port=1740 rmngr_port=1741 rphost_start_port=1760 rphost_end_port=1791 ras_port=1745" --ask-become-pass
+ansible-playbook site.yml --limit one_c_server -e "ragent_port=1740 rmngr_port=1741 rphost_start_port=1760 rphost_end_port=1791 ras_port=1745" --ask-become-pass -vv
 ```
 
 Эта команда:
@@ -104,13 +122,14 @@ ansible-playbook site.yml --limit one_c_server -e "ragent_port=1740 rmngr_port=1
 - Устанавливает диапазон портов `rphost` на 1760-1791
 - Устанавливает порт `ras` на 1745
 - Запрашивает пароль для повышения привилегий (sudo)
+- Включает подробный вывод для отладки
 
 ### Установка только PostgreSQL
 
 Для установки только PostgreSQL используйте следующую команду:
 
 ```bash
-ansible-playbook site.yml --limit postgres --ask-become-pass
+ansible-playbook site.yml --limit postgres --ask-become-pass -vv
 ```
 
 ## Лицензия
