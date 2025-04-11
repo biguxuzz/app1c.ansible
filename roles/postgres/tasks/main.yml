@@ -91,35 +91,37 @@
         path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
       register: _initdb_signal
 
-    - name: Инициализация базы данных PostgreSQL
-      ansible.builtin.shell: |
-        if [ ! -f /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION ]; then
-          echo "Начинаю инициализацию базы данных..."
-          /usr/bin/timeout 60 /opt/pgpro/1c-{{ postgres_version }}/bin/initdb \
-            --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }} \
-            --locale="ru_RU.UTF-8" \
-            --no-sync \
-            --encoding="UTF8" \
-            --set port={{ postgres_port }} 2>&1
-          RESULT=$?
-          if [ $RESULT -eq 0 ]; then
+    - name: Создание скрипта инициализации базы данных
+      ansible.builtin.copy:
+        dest: /tmp/init_postgres_{{ postgres_port }}.sh
+        content: |
+          #!/bin/bash
+          set -e
+          set -x
+          if [ ! -f /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION ]; then
+            echo "Начинаю инициализацию базы данных..."
+            /opt/pgpro/1c-{{ postgres_version }}/bin/initdb \
+              --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }} \
+              --locale="ru_RU.UTF-8" \
+              --no-sync \
+              --encoding="UTF8" \
+              --set port={{ postgres_port }}
             echo "Инициализация базы данных успешно завершена."
-          elif [ $RESULT -eq 124 ]; then
-            echo "Превышено время ожидания инициализации базы данных (60 секунд)."
-            exit 1
           else
-            echo "Ошибка инициализации базы данных с кодом $RESULT."
-            exit $RESULT
+            echo "База данных уже существует"
           fi
-        else
-          echo "База данных уже существует"
-        fi
+        mode: '0755'
+        owner: "{{ postgres_user }}"
+        group: "{{ postgres_group }}"
+      when: not _initdb_signal.stat.exists
+
+    - name: Выполнение скрипта инициализации базы данных
+      ansible.builtin.command: /tmp/init_postgres_{{ postgres_port }}.sh
       become: true
       become_user: "{{ postgres_user }}"
       register: _initdb_exec
-      failed_when: false
       when: not _initdb_signal.stat.exists
-      
+
     - name: Создание директории для конфигурации службы Postgres Pro 1C
       file:
         path: /etc/systemd/system/postgrespro-1c-{{ postgres_version }}@{{ postgres_port }}.service.d
