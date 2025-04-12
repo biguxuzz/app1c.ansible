@@ -65,8 +65,8 @@
     - name: Изменение ExecStart
       replace:
         path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
-        regexp: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D \\${PGDATA}'
-        replace: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D \\${PG_SEPARATE_DATA}'
+        regexp: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D ${PGDATA}'
+        replace: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D ${PG_SEPARATE_DATA}'
 
     - name: Изменение пользователя и группы в службе
       replace:
