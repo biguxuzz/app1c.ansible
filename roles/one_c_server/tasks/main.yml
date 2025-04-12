@@ -60,14 +60,14 @@
 
     - name: Создание директории для конфигурации службы RAS
       file:
-        path: /etc/systemd/system/ras-{{ platform_version }}@debug_{{ ragent_port }}.service.d
+        path: /etc/systemd/system/ras-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d
         state: directory
         mode: '0755'
 
     - name: Создание конфигурации службы RAS
       template:
         src: ras.override.conf.j2
-        dest: /etc/systemd/system/ras-{{ platform_version }}@debug_{{ ragent_port }}.service.d/override.conf
+        dest: /etc/systemd/system/ras-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d/override.conf
         mode: '0644'
 
 - name: Линковка служб 1С
@@ -79,7 +79,7 @@
 
     - name: Создание директории для конфигурации службы 1С
       file:
-        path: /etc/systemd/system/srv1cv8-{{ platform_version }}@debug_{{ ragent_port }}.service.d
+        path: /etc/systemd/system/srv1cv8-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d
         state: directory
         mode: '0755'
 
@@ -88,7 +88,7 @@
     - name: Создание конфигурации службы 1С
       template:
         src: srv1cv8.override.conf.j2
-        dest: /etc/systemd/system/srv1cv8-{{ platform_version }}@debug_{{ ragent_port }}.service.d/override.conf
+        dest: /etc/systemd/system/srv1cv8-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d/override.conf
         mode: '0644'
 
     - name: Перезагрузка systemd
@@ -97,13 +97,13 @@
 
     - name: Включение и запуск службы 1С
       systemd:
-        name: srv1cv8-{{ platform_version }}@debug_{{ ragent_port }}
+        name: srv1cv8-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}
         state: started
         enabled: yes
 
     - name: Включение и запуск службы RAS
       systemd:
-        name: ras-{{ platform_version }}@debug_{{ ragent_port }}
+        name: ras-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}
         state: started
         enabled: yes
 
