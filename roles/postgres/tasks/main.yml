@@ -50,23 +50,9 @@
         regexp: 'Description=Postgres Pro 1c {{ postgres_version }} database server'
         replace: 'Description=Postgres Pro 1c {{ postgres_version }} database server (%i)'
 
-    - name: Добавление переменной PG_SEPARATE_DATA
-      replace:
-        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
-        regexp: 'EnvironmentFile=/etc/default/postgrespro-1c-{{ postgres_version }}'
-        replace: 'EnvironmentFile=/etc/default/postgrespro-1c-{{ postgres_version }}\nEnvironment=PG_SEPARATE_DATA=need_to_override'
-
-    - name: Изменение ExecStartPre и ExecStart
-      replace:
-        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
-        regexp: 'ExecStartPre=/opt/pgpro/1c-{{ postgres_version }}/bin/check-db-dir ${PGDATA}'
-        replace: 'ExecStartPre=/opt/pgpro/1c-{{ postgres_version }}/bin/check-db-dir ${PG_SEPARATE_DATA}'
-
-    - name: Изменение ExecStart
-      replace:
-        path: /lib/systemd/system/postgrespro-1c-{{ postgres_version }}@.service
-        regexp: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D ${PGDATA}'
-        replace: 'ExecStart=/opt/pgpro/1c-{{ postgres_version }}/bin/postgres -D ${PG_SEPARATE_DATA}'
+    - name: Вывод информации о переменных окружения сервиса
+      ansible.builtin.debug:
+        var: service_env.stdout_lines
 
     - name: Изменение пользователя и группы в службе
       replace:
@@ -80,7 +66,7 @@
 
     - name: Создание директории для данных PostgreSQL
       file:
-        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}
+        path: /var/lib/pgpro/1c-{{ postgres_version }}/{{ postgres_port }}
         state: directory
         owner: "{{ postgres_user }}"
         group: "{{ postgres_group }}"
@@ -88,13 +74,13 @@
 
     - name: Проверка существования директории базы данных
       ansible.builtin.stat:
-        path: /var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
+        path: /var/lib/pgpro/1c-{{ postgres_version }}/{{ postgres_port }}/PG_VERSION
       register: _initdb_signal
 
     - name: Инициализация базы данных PostgreSQL через su
       ansible.builtin.shell: |
         su - {{ postgres_user }} -c "/opt/pgpro/1c-{{ postgres_version }}/bin/initdb \
-          --pgdata=/var/lib/postgresql/{{ postgres_version }}/{{ postgres_port }} \
+          --pgdata=/var/lib/pgpro/1c-{{ postgres_version }}/{{ postgres_port }} \
           --locale=ru_RU.UTF-8 \
           --no-sync \
           --encoding=UTF8 \
@@ -102,6 +88,12 @@
           --set port={{ postgres_port }}"
       register: _initdb_exec
       when: not _initdb_signal.stat.exists
+
+    - name: Создание файла конфигурации кластера
+      template:
+        src: postgres.cluster.conf.j2
+        dest: /etc/default/postgrespro-1c-{{ postgres_version }}-{{ postgres_port }}
+        mode: '0644'
 
     - name: Создание директории для конфигурации службы Postgres Pro 1C
       file:
@@ -126,7 +118,3 @@
         systemctl show postgrespro-1c-{{ postgres_version }}@{{ postgres_port }} | grep -E 'Environment|ExecStart'
       register: service_env
       changed_when: false
-
-    - name: Вывод информации о переменных окружения сервиса
-      ansible.builtin.debug:
-        var: service_env.stdout_lines 
