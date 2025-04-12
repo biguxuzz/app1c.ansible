@@ -2,12 +2,5 @@
 # Общие переменные для всех хостов
 ansible_python_interpreter: /usr/bin/python3
 
-# Порты для сервисов 1С
-ragent_port: 1540
-rmngr_port: 1541
-rphost_start_port: 1560
-rphost_end_port: 1591
-ras_port: 1545
-
-# Версия платформы 1С
-platform_version: "8.3.26.1521" 
+# Имя кластера
+cluster_name: "base1"
