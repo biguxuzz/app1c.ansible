@@ -1,12 +1,12 @@
 ---
+# Версия платформы 1С
+platform_version: "8.3.26.1521" 
+
 # Параметры 1С
 1c_group: "grp1cv8"
 1c_user: "usr1cv8"
 1c_home: "/home/usr1cv8"
 one_c_platform_path: "/opt/1cv8/x86_64/{{ platform_version }}"
-
-# Название кластера
-cluster_name: "base1"
 
 # Префикс для портов (первые две цифры)
 port_prefix: "15"
