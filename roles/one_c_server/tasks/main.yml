@@ -107,4 +107,26 @@
         state: started
         enabled: yes
 
+    - name: Ожидание запуска PostgreSQL
+      wait_for:
+        host: localhost
+        port: "{{ postgres_port }}"
+        timeout: 30
+
+    - name: Создание базы 1С
+      shell: |
+        cd {{ one_c_platform_path }}
+        ./rac localhost:{{ ras_port }} infobase --cluster="$(./rac localhost:{{ ras_port }} cluster list | awk -F ' : ' '/^cluster[ ]*:/{print $2}')" create \
+          --create-database \
+          --name={{ cluster_name }} \
+          --dbms=PostgreSQL \
+          --db-server='localhost port={{ postgres_port }}' \
+          --db-name={{ cluster_name }} \
+          --locale=ru \
+          --db-user=postgres \
+          --license-distribution=allow
+      register: create_base_result
+      changed_when: create_base_result.rc == 0
+      failed_when: create_base_result.rc != 0 and 'already exists' not in create_base_result.stderr
+
  
