@@ -8,6 +8,13 @@ platform_version: "8.3.26.1521"
 1c_home: "/home/usr1cv8"
 one_c_platform_path: "/opt/1cv8/x86_64/{{ platform_version }}"
 
+# Управление платформой
+remove_old_platform: false  # Удалять ли предыдущую версию платформы
+platform_version_to_remove: ""  # Версия платформы, которую нужно удалить (пусто - удалить все кроме новой)
+
+# Название кластера
+cluster_name: "base1"
+
 # Префикс для портов (первые две цифры)
 port_prefix: "15"
 

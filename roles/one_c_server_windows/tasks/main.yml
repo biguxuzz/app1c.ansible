@@ -1,0 +1,109 @@
+---
+- name: Поиск установленных версий 1С
+  win_find:
+    paths: "C:\\Program Files\\1cv8"
+    patterns: "[0-9]*"
+    file_type: directory
+  register: installed_versions
+
+- name: Удаление старой платформы 1С
+  block:
+    - name: Остановка служб 1С
+      win_service:
+        name: "1CEnterprise{{ item }}Server"
+        state: stopped
+        start_mode: disabled
+      loop: "{{ installed_versions.files | map(attribute='path') | map('basename') | list }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and old_version != platform_version) or
+        (platform_version_to_remove != "" and old_version == platform_version_to_remove)
+      ignore_errors: yes
+
+    - name: Удаление старых версий платформы
+      win_file:
+        path: "C:\\Program Files\\1cv8\\{{ item }}"
+        state: absent
+      loop: "{{ installed_versions.files | map(attribute='path') | map('basename') | list }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and old_version != platform_version) or
+        (platform_version_to_remove != "" and old_version == platform_version_to_remove)
+  when: remove_old_platform | bool
+
+- name: Установка платформы 1С
+  block:
+    - name: Скачивание пакетов 1С
+      win_get_url:
+        url: 'https://1cit.com/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_x86_64.msi'
+        dest: 'C:\\Windows\\Temp\\1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_x86_64.msi'
+      loop:
+        - server
+        - server-nls
+
+    - name: Установка пакетов 1С
+      win_package:
+        path: 'C:\\Windows\\Temp\\1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_x86_64.msi'
+        state: present
+      loop:
+        - server
+        - server-nls
+
+- name: Настройка службы 1С
+  block:
+    - name: Создание конфигурации службы 1С
+      win_template:
+        src: srv1cv8.ini.j2
+        dest: "{{ one_c_platform_path }}\\conf\\srv1cv8.ini"
+        mode: '0644'
+
+    - name: Установка службы 1С
+      win_service:
+        name: "{{ service_name }}"
+        path: "{{ one_c_platform_path }}\\bin\\srv1cv8.exe"
+        state: present
+        start_mode: auto
+        display_name: "{{ service_display_name }}"
+        description: "{{ service_description }}"
+        username: "{{ service_user }}"
+        arguments: >
+          --port {{ ragent_port }} 
+          --regport {{ rmngr_port }} 
+          --range {{ rphost_start_port }}-{{ rphost_end_port }} 
+          --cluster {{ cluster_name }} 
+          --dbserver localhost:{{ postgres_port }} 
+          --dbname {{ cluster_name }} 
+          --dbuser postgres 
+          --dbpwd postgres 
+          --locale ru 
+          --debug 
+          --debug-addr localhost:{{ ras_port }}
+
+    - name: Запуск службы 1С
+      win_service:
+        name: "{{ service_name }}"
+        state: started
+
+    - name: Ожидание запуска PostgreSQL
+      wait_for:
+        host: localhost
+        port: "{{ postgres_port }}"
+        timeout: 30
+
+    - name: Создание базы 1С
+      win_shell: |
+        cd {{ one_c_platform_path }}
+        .\\rac localhost:{{ ras_port }} infobase --cluster="$(.\\rac localhost:{{ ras_port }} cluster list | Select-String -Pattern '^cluster[ ]*: ' | ForEach-Object { $_.Line.Split(' : ')[1] })" create `
+          --create-database `
+          --name={{ cluster_name }} `
+          --dbms=PostgreSQL `
+          --db-server='localhost port={{ postgres_port }}' `
+          --db-name={{ cluster_name }} `
+          --locale=ru `
+          --db-user=postgres `
+          --license-distribution=allow
+      register: create_base_result
+      changed_when: create_base_result.rc == 0
+      failed_when: create_base_result.rc != 0 and 'already exists' not in create_base_result.stderr 

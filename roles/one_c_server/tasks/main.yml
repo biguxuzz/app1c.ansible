@@ -8,6 +8,59 @@
     state: present
     update_cache: yes
 
+- name: Поиск установленных версий 1С
+  shell: "ls -1 /opt/1cv8/x86_64/ | grep '^[0-9]'"
+  register: installed_versions
+  changed_when: false
+  ignore_errors: yes
+
+- name: Удаление старой платформы 1С
+  block:
+    - name: Остановка служб 1С
+      systemd:
+        name: "{{ old_version }}"
+        state: stopped
+        enabled: no
+      loop: "{{ installed_versions.stdout_lines }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and old_version != platform_version) or
+        (platform_version_to_remove != "" and old_version == platform_version_to_remove)
+      ignore_errors: yes
+
+    - name: Удаление пакетов 1С
+      apt:
+        name:
+          - "1c-enterprise-{{ item }}-common"
+          - "1c-enterprise-{{ item }}-common-nls"
+          - "1c-enterprise-{{ item }}-server"
+          - "1c-enterprise-{{ item }}-server-nls"
+          - "1c-enterprise-{{ item }}-ws"
+          - "1c-enterprise-{{ item }}-ws-nls"
+          - "1c-enterprise-{{ item }}-client"
+          - "1c-enterprise-{{ item }}-client-nls"
+        state: absent
+        purge: yes
+      loop: "{{ installed_versions.stdout_lines }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and item != platform_version) or
+        (platform_version_to_remove != "" and item == platform_version_to_remove)
+
+    - name: Удаление директорий старых версий платформы
+      file:
+        path: "/opt/1cv8/x86_64/{{ item }}"
+        state: absent
+      loop: "{{ installed_versions.stdout_lines }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and item != platform_version) or
+        (platform_version_to_remove != "" and item == platform_version_to_remove)
+  when: remove_old_platform | bool
+
 - name: Установка платформы 1С
   block:
     - name: Скачивание пакетов 1С
