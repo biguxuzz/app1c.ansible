@@ -8,4 +8,5 @@ postgres_local ansible_connection=local ansible_python_interpreter=/usr/bin/pyth
 one_c_hosts
 
 [one_c_hosts]
-one_c_local ansible_connection=local ansible_python_interpreter=/usr/bin/python3 
+one_c_remote1 ansible_host=192.168.54.18 ansible_user=iadmin
+one_c_remote2 ansible_host=192.168.54.104 ansible_user=iadmin 
