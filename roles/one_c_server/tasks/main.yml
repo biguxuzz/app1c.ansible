@@ -65,8 +65,8 @@
   block:
     - name: Копирование пакетов 1С
       copy:
-        src: "files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\.(?=[^.]*$)', '-') }}_amd64.deb"
-        dest: "/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\.(?=[^.]*$)', '-') }}_amd64.deb"
+        src: "files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
+        dest: "/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
       loop:
         - common
         - server
@@ -74,7 +74,7 @@
 
     - name: Установка пакетов 1С
       apt:
-        deb: '/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_amd64.deb'
+        deb: '/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\\.(?=[^.]*$)", "-") }}_amd64.deb'
         state: present
       loop:
         - common
