@@ -15,5 +15,4 @@
   hosts: postgres_hosts
   become: yes
   roles:
-    - one_c_database
-  when: create_database | default(false) | bool 
+    - one_c_database 

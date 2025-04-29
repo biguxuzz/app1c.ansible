@@ -4,6 +4,7 @@
     host: localhost
     port: "{{ postgres_port }}"
     timeout: 30
+  when: create_database | default(false) | bool
 
 - name: Создание базы 1С
   shell: |
@@ -19,4 +20,5 @@
       --license-distribution=allow
   register: create_base_result
   changed_when: create_base_result.rc == 0
-  failed_when: create_base_result.rc != 0 and 'already exists' not in create_base_result.stderr 
+  failed_when: create_base_result.rc != 0 and 'already exists' not in create_base_result.stderr
+  when: create_database | default(false) | bool 
