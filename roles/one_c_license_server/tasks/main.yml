@@ -1,2 +1,170 @@
 ---
 # tasks file for roles/one_c_license_server
+
+- name: Установка необходимых пакетов
+  apt:
+    name:
+      - wget
+      - libsm6
+      - libwebkit2gtk-4.0-37
+    state: present
+    update_cache: yes
+
+- name: Поиск установленных версий 1С
+  shell: "ls -1 /opt/1cv8/x86_64/ | grep '^[0-9]'"
+  register: installed_versions
+  changed_when: false
+  ignore_errors: yes
+
+- name: Удаление старой платформы 1С
+  block:
+    - name: Остановка служб 1С
+      systemd:
+        name: "{{ old_version }}"
+        state: stopped
+        enabled: no
+      loop: "{{ installed_versions.stdout_lines }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and old_version != platform_version) or
+        (platform_version_to_remove != "" and old_version == platform_version_to_remove)
+      ignore_errors: yes
+
+    - name: Удаление пакетов 1С
+      apt:
+        name:
+          - "1c-enterprise-{{ item }}-common"
+          - "1c-enterprise-{{ item }}-common-nls"
+          - "1c-enterprise-{{ item }}-server"
+          - "1c-enterprise-{{ item }}-server-nls"
+          - "1c-enterprise-{{ item }}-ws"
+          - "1c-enterprise-{{ item }}-ws-nls"
+          - "1c-enterprise-{{ item }}-client"
+          - "1c-enterprise-{{ item }}-client-nls"
+        state: absent
+        purge: yes
+      loop: "{{ installed_versions.stdout_lines }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and item != platform_version) or
+        (platform_version_to_remove != "" and item == platform_version_to_remove)
+
+    - name: Удаление директорий старых версий платформы
+      file:
+        path: "/opt/1cv8/x86_64/{{ item }}"
+        state: absent
+      loop: "{{ installed_versions.stdout_lines }}"
+      loop_control:
+        loop_var: old_version
+      when: >
+        (platform_version_to_remove == "" and item != platform_version) or
+        (platform_version_to_remove != "" and item == platform_version_to_remove)
+  when: remove_old_platform | bool
+
+- name: Установка платформы 1С
+  block:
+    - name: Копирование пакетов 1С
+      copy:
+        src: "{{ role_path }}/files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
+        dest: "/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
+      loop:
+        - common
+        - server
+        - ws
+
+    - name: Установка пакетов 1С
+      apt:
+        deb: "{{ '/tmp/1c-enterprise-' + platform_version + '-' + item + '_' + (platform_version | regex_replace('\\.(?=[^.]*$)', '-')) + '_amd64.deb' }}"
+        state: present
+      loop:
+        - common
+        - server
+        - ws
+
+- name: Настройка службы RAS
+  block:
+    - name: Копирование службы RAS
+      copy:
+        src: "{{ one_c_platform_path }}/ras-{{ platform_version }}.service"
+        dest: "{{ one_c_platform_path }}/ras-{{ platform_version }}@.service"
+        remote_src: yes
+        mode: '0644'
+
+    - name: Изменение описания службы RAS
+      replace:
+        path: "{{ one_c_platform_path }}/ras-{{ platform_version }}@.service"
+        regexp: 'Description=1C:Enterprise Remote Administration Server 8.3 \({{ platform_version }}\)'
+        replace: 'Description=1C:Enterprise Remote Administration Server 8.3 ({{ platform_version }}) (%I)'
+
+    - name: Линковка RAS
+      command: systemctl link {{ one_c_platform_path }}/ras-{{ platform_version }}@.service
+      args:
+        creates: /etc/systemd/system/ras-{{ platform_version }}@.service
+
+    - name: Создание директории для конфигурации службы RAS
+      file:
+        path: /etc/systemd/system/ras-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d
+        state: directory
+        mode: '0755'
+
+    - name: Создание конфигурации службы RAS
+      template:
+        src: ras.override.conf.j2
+        dest: /etc/systemd/system/ras-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d/override.conf
+        mode: '0644'
+
+- name: Линковка служб 1С
+  block:
+    - name: Линковка сервера 1С
+      command: systemctl link {{ one_c_platform_path }}/srv1cv8-{{ platform_version }}@.service
+      args:
+        creates: /etc/systemd/system/srv1cv8-{{ platform_version }}@.service
+
+    - name: Создание директории для конфигурации службы 1С
+      file:
+        path: /etc/systemd/system/srv1cv8-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d
+        state: directory
+        mode: '0755'
+
+- name: Настройка службы 1С
+  block:
+    - name: Создание конфигурации службы 1С
+      template:
+        src: srv1cv8.override.conf.j2
+        dest: /etc/systemd/system/srv1cv8-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}.service.d/override.conf
+        mode: '0644'
+
+    - name: Перезагрузка systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Включение и запуск службы 1С
+      systemd:
+        name: srv1cv8-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}
+        state: started
+        enabled: yes
+
+    - name: Включение и запуск службы RAS
+      systemd:
+        name: ras-{{ platform_version }}@{{ cluster_name }}_{{ ragent_port }}
+        state: started
+        enabled: yes
+
+    - name: Создание базы 1С
+      shell: |
+        cd {{ one_c_platform_path }}
+        ./rac localhost:{{ ras_port }} infobase --cluster="$(./rac localhost:{{ ras_port }} cluster list | awk -F ' : ' '/^cluster[ ]*:/{print $2}')" create \
+          --create-database \
+          --name={{ cluster_name }} \
+          --dbms=PostgreSQL \
+          --db-server='localhost port={{ postgres_port }}' \
+          --db-name={{ cluster_name }} \
+          --locale=ru \
+          --db-user=postgres \
+          --license-distribution=allow
+      register: create_base_result
+      changed_when: create_base_result.rc == 0
+      failed_when: create_base_result.rc != 0 and 'already exists' not in create_base_result.stderr
+      when: create_database | default(false) | bool

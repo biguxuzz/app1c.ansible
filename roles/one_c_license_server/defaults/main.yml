@@ -1,2 +1,17 @@
 ---
 # defaults file for roles/one_c_license_server
+
+# Путь к платформе 1С
+one_c_platform_path: "/opt/1cv8/x86_64/{{ platform_version }}"
+
+# Настройки кластера
+cluster_name: "lic"
+ragent_port: 1545
+ras_port: 1546
+
+# Настройки PostgreSQL
+postgres_port: 5432
+
+# Флаги управления
+remove_old_platform: true
+create_database: true
