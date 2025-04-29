@@ -151,13 +151,6 @@
         state: started
         enabled: yes
 
-    - name: Ожидание запуска PostgreSQL
-      wait_for:
-        host: localhost
-        port: "{{ postgres_port }}"
-        timeout: 30
-      when: create_database | default(false) | bool
-
     - name: Создание базы 1С
       shell: |
         cd {{ one_c_platform_path }}

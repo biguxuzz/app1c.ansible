@@ -9,4 +9,11 @@
   hosts: one_c_hosts
   become: yes
   roles:
-    - one_c_server 
+    - one_c_server
+
+- name: Создание базы данных 1С
+  hosts: postgres_hosts
+  become: yes
+  roles:
+    - one_c_database
+  when: create_database | default(false) | bool 
