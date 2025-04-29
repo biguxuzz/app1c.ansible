@@ -65,7 +65,7 @@
   block:
     - name: Проверка наличия файлов пакетов 1С
       stat:
-        path: "files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
+        path: "{{ role_path }}/files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
       register: file_stat
       loop:
         - common
@@ -75,7 +75,7 @@
 
     - name: Копирование пакетов 1С
       copy:
-        src: "files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
+        src: "{{ role_path }}/files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
         dest: "/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
       loop:
         - common
