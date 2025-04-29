@@ -1,12 +1,12 @@
 ---
 - name: Установка Postgres Pro 1C
-  hosts: postgres
+  hosts: postgres_hosts
   become: yes
   roles:
     - postgres
 
 - name: Установка платформы 1С
-  hosts: one_c_server
+  hosts: one_c_hosts
   become: yes
   roles:
     - one_c_server 
