@@ -63,16 +63,6 @@
 
 - name: Установка платформы 1С
   block:
-    - name: Проверка наличия файлов пакетов 1С
-      stat:
-        path: "{{ role_path }}/files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
-      register: file_stat
-      loop:
-        - common
-        - server
-        - ws
-      failed_when: not file_stat.stat.exists
-
     - name: Копирование пакетов 1С
       copy:
         src: "{{ role_path }}/files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\\.(?=[^.]*$)', '-') }}_amd64.deb"
