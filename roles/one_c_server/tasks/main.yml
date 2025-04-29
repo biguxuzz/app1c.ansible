@@ -63,19 +63,14 @@
 
 - name: Установка платформы 1С
   block:
-    - name: Скачивание пакетов 1С
-      get_url:
-        url: 'https://1cit.com/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_amd64.deb' 
-        dest: '/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace("\.(?=[^.]*$)", "-") }}_amd64.deb'
+    - name: Копирование пакетов 1С
+      copy:
+        src: "files/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\.(?=[^.]*$)', '-') }}_amd64.deb"
+        dest: "/tmp/1c-enterprise-{{ platform_version }}-{{ item }}_{{ platform_version | regex_replace('\.(?=[^.]*$)', '-') }}_amd64.deb"
       loop:
         - common
-        - common-nls
         - server
-        - server-nls
         - ws
-        - ws-nls
-        - client
-        - client-nls
 
     - name: Установка пакетов 1С
       apt:
@@ -83,13 +78,9 @@
         state: present
       loop:
         - common
-        - common-nls
         - server
-        - server-nls
         - ws
-        - ws-nls
-        - client
-        - client-nls
+
 
 - name: Настройка службы RAS
   block:

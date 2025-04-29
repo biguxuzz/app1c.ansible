@@ -1,0 +1,3 @@
+# Игнорировать файлы пакетов 1С, но сохранить описание
+roles/one_c_server/files/*.deb
+!roles/one_c_server/files/README.md 
