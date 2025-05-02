@@ -27,7 +27,7 @@ get_license_info() {
 extract_value() {
     local info=$1
     local field=$2
-    echo "$info" | grep -A 1000 "$field:" | grep -m 1 -v "^$field:" | sed 's/^[[:space:]]*//'
+    echo "$info" | grep -A 1000 "$field:" | grep -m 1 -v "^$field:" | sed 's/^[[:space:]]*//' | sed "s/^$field: //"
 }
 
 # Функция для создания скрипта запроса на лицензию
