@@ -18,7 +18,7 @@
     - one_c_database 
 
 - name: Установка лицензирования 1С
-  hosts: one_c_license_hosts
+  hosts: one_c_license_servers
   become: yes
   roles:
     - one_c_license_server

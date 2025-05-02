@@ -25,5 +25,5 @@ all:
           ras_port: 1546
           postgres_port: 5432
           platform_version: 8.3.25.1394
-          remove_old_platform: true
-          create_database: true 
+          remove_old_platform: false
+          create_database: false 
