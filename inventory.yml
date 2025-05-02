@@ -17,13 +17,13 @@ all:
     one_c_license_servers:
       hosts:
         one_c_license1:
-          ansible_host: 192.168.54.104
-          ansible_user: root
+          ansible_host: 192.168.1.14
+          ansible_user: gorp
           ansible_ssh_private_key_file: ~/.ssh/id_rsa
           cluster_name: lic
           ragent_port: 1545
           ras_port: 1546
           postgres_port: 5432
-          platform_version: 8.3.24.1691
+          platform_version: 8.3.25.1394
           remove_old_platform: true
           create_database: true 
