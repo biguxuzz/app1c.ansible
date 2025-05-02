@@ -1,3 +1,5 @@
 # Игнорировать файлы пакетов 1С, но сохранить описание
 roles/one_c_server/files/*.deb
+roles/one_c_license_server/files/*.tar.gz
+roles/one_c_license_server/files/*.deb
 !roles/one_c_server/files/README.md 

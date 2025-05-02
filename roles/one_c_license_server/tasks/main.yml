@@ -7,61 +7,9 @@
       - wget
       - libsm6
       - libwebkit2gtk-4.0-37
+      - openjdk-11-jdk
     state: present
     update_cache: yes
-
-- name: Поиск установленных версий 1С
-  shell: "ls -1 /opt/1cv8/x86_64/ | grep '^[0-9]'"
-  register: installed_versions
-  changed_when: false
-  ignore_errors: yes
-
-- name: Удаление старой платформы 1С
-  block:
-    - name: Остановка служб 1С
-      systemd:
-        name: "{{ old_version }}"
-        state: stopped
-        enabled: no
-      loop: "{{ installed_versions.stdout_lines }}"
-      loop_control:
-        loop_var: old_version
-      when: >
-        (platform_version_to_remove == "" and old_version != platform_version) or
-        (platform_version_to_remove != "" and old_version == platform_version_to_remove)
-      ignore_errors: yes
-
-    - name: Удаление пакетов 1С
-      apt:
-        name:
-          - "1c-enterprise-{{ item }}-common"
-          - "1c-enterprise-{{ item }}-common-nls"
-          - "1c-enterprise-{{ item }}-server"
-          - "1c-enterprise-{{ item }}-server-nls"
-          - "1c-enterprise-{{ item }}-ws"
-          - "1c-enterprise-{{ item }}-ws-nls"
-          - "1c-enterprise-{{ item }}-client"
-          - "1c-enterprise-{{ item }}-client-nls"
-        state: absent
-        purge: yes
-      loop: "{{ installed_versions.stdout_lines }}"
-      loop_control:
-        loop_var: old_version
-      when: >
-        (platform_version_to_remove == "" and item != platform_version) or
-        (platform_version_to_remove != "" and item == platform_version_to_remove)
-
-    - name: Удаление директорий старых версий платформы
-      file:
-        path: "/opt/1cv8/x86_64/{{ item }}"
-        state: absent
-      loop: "{{ installed_versions.stdout_lines }}"
-      loop_control:
-        loop_var: old_version
-      when: >
-        (platform_version_to_remove == "" and item != platform_version) or
-        (platform_version_to_remove != "" and item == platform_version_to_remove)
-  when: remove_old_platform | bool
 
 - name: Установка платформы 1С
   block:
@@ -82,6 +30,25 @@
         - common
         - server
         - ws
+
+- name: Установка инструментов лицензирования 1С
+  block:
+    - name: Копирование архива инструментов лицензирования
+      copy:
+        src: "{{ role_path }}/files/1c_enterprise_license_tools_0.15.0_2_linux_x86_64.tar.gz"
+        dest: "/tmp/1c_enterprise_license_tools_0.15.0_2_linux_x86_64.tar.gz"
+
+    - name: Распаковка архива инструментов лицензирования
+      unarchive:
+        src: "/tmp/1c_enterprise_license_tools_0.15.0_2_linux_x86_64.tar.gz"
+        dest: "/tmp"
+        remote_src: yes
+
+    - name: Установка инструментов лицензирования
+      command: "./1ce-installer-cli install --ignore-signature-warnings"
+      args:
+        chdir: "/tmp"
+        creates: "/usr/bin/1ce-installer-cli"
 
 - name: Настройка службы RAS
   block:
@@ -152,19 +119,3 @@
         state: started
         enabled: yes
 
-    - name: Создание базы 1С
-      shell: |
-        cd {{ one_c_platform_path }}
-        ./rac localhost:{{ ras_port }} infobase --cluster="$(./rac localhost:{{ ras_port }} cluster list | awk -F ' : ' '/^cluster[ ]*:/{print $2}')" create \
-          --create-database \
-          --name={{ cluster_name }} \
-          --dbms=PostgreSQL \
-          --db-server='localhost port={{ postgres_port }}' \
-          --db-name={{ cluster_name }} \
-          --locale=ru \
-          --db-user=postgres \
-          --license-distribution=allow
-      register: create_base_result
-      changed_when: create_base_result.rc == 0
-      failed_when: create_base_result.rc != 0 and 'already exists' not in create_base_result.stderr
-      when: create_database | default(false) | bool
