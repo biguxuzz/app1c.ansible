@@ -28,8 +28,11 @@ extract_value() {
     local info=$1
     local field=$2
     local value
+    # Удаляем все пробелы в начале строки и метку поля
     value=$(echo "$info" | grep -A 1000 "$field:" | grep -m 1 -v "^$field:" | sed 's/^[[:space:]]*//' | sed "s/^$field: //")
-    echo "${value:-""}"
+    # Если значение пустое, возвращаем пустую строку
+    [ -z "$value" ] && value=""
+    echo "$value"
 }
 
 # Функция для создания скрипта запроса на лицензию
