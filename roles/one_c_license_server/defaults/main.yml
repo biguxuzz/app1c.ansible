@@ -6,12 +6,14 @@ one_c_platform_path: "/opt/1cv8/x86_64/{{ platform_version }}"
 
 # Настройки кластера
 cluster_name: "lic"
-ragent_port: 1545
-ras_port: 1546
 
-# Настройки PostgreSQL
-postgres_port: 5432
+# Префикс для портов (первые две цифры)
+port_prefix: "15"
 
-# Флаги управления
-remove_old_platform: true
-create_database: true
+# Порты для сервисов 1С
+ragent_port: "{{ port_prefix }}40"
+rmngr_port: "{{ port_prefix }}41"
+rphost_start_port: "{{ port_prefix }}60"
+rphost_end_port: "{{ port_prefix }}91"
+ras_port: "{{ port_prefix }}45" 
+
