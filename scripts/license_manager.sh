@@ -4,9 +4,11 @@
 RING_PATH="/opt/1C/1CE/components/1c-enterprise-ring-0.19.5+12-x86_64"
 LICENSE_PATH="/mnt/e/temp/lic/gst"
 OUTPUT_DIR="$HOME/license_requests"
+SCRIPTS_DIR="$OUTPUT_DIR/scripts"
 
-# Создаем директорию для выходных файлов, если её нет
+# Создаем директории для выходных файлов, если их нет
 mkdir -p "$OUTPUT_DIR"
+mkdir -p "$SCRIPTS_DIR"
 
 # Функция для получения списка лицензий
 get_license_list() {
@@ -28,11 +30,11 @@ extract_value() {
     echo "$info" | grep -A 1000 "$field:" | grep -m 1 -v "^$field:" | sed 's/^[[:space:]]*//'
 }
 
-# Функция для подготовки запроса на лицензию
-prepare_license_request() {
+# Функция для создания скрипта запроса на лицензию
+create_license_script() {
     local license_name=$1
     local info=$2
-    local request_file="$OUTPUT_DIR/request_$license_name.txt"
+    local script_file="$SCRIPTS_DIR/request_$license_name.sh"
     local log_file="$OUTPUT_DIR/log_$license_name.txt"
 
     # Извлекаем данные из информации о лицензии
@@ -51,32 +53,48 @@ prepare_license_request() {
     local serial=$(echo "$info" | grep "Регистрационный номер:" | awk '{print $3}' | sed 's/G0$//')
     local pin=$(echo "$license_name" | cut -d'-' -f1)
 
-    # Подготавливаем запрос
-    "$RING_PATH/ring" license prepare-request \
-        --serial "$serial" \
-        --previous-pin "$pin" \
-        --pin "$pin" \
-        --company "\"$company\"" \
-        --last-name "$last_name" \
-        --first-name "$first_name" \
-        --middle-name "$middle_name" \
-        --email "$email" \
-        --country "$country" \
-        --zip-code "$zip_code" \
-        --region "Область" \
-        --town "$town" \
-        --street "$street" \
-        --house "$house" \
-        --building "$building" \
-        --apartment "$apartment" \
-        --request "$request_file" > "$log_file" 2>&1
+    # Создаем скрипт для запроса лицензии
+    cat > "$script_file" << EOF
+#!/bin/bash
 
-    if [ $? -eq 0 ]; then
-        echo "Запрос успешно создан: $request_file"
-    else
-        echo "Ошибка при создании запроса для лицензии $license_name"
-        cat "$log_file"
-    fi
+# Скрипт для запроса лицензии $license_name
+# Создан автоматически. При необходимости отредактируйте параметры.
+
+RING_PATH="$RING_PATH"
+REQUEST_FILE="$OUTPUT_DIR/request_$license_name.txt"
+LOG_FILE="$log_file"
+
+# Выполнение запроса на лицензию
+"\$RING_PATH/ring" license prepare-request \\
+    --serial "$serial" \\
+    --previous-pin "$pin" \\
+    --pin "$pin" \\
+    --company "\"$company\"" \\
+    --last-name "$last_name" \\
+    --first-name "$first_name" \\
+    --middle-name "$middle_name" \\
+    --email "$email" \\
+    --country "$country" \\
+    --zip-code "$zip_code" \\
+    --region "Область" \\
+    --town "$town" \\
+    --street "$street" \\
+    --house "$house" \\
+    --building "$building" \\
+    --apartment "$apartment" \\
+    --request "\$REQUEST_FILE" > "\$LOG_FILE" 2>&1
+
+if [ \$? -eq 0 ]; then
+    echo "Запрос успешно создан: \$REQUEST_FILE"
+else
+    echo "Ошибка при создании запроса"
+    cat "\$LOG_FILE"
+fi
+EOF
+
+    # Делаем скрипт исполняемым
+    chmod +x "$script_file"
+    echo "Создан скрипт для лицензии $license_name: $script_file"
 }
 
 # Основной цикл обработки лицензий
@@ -91,7 +109,9 @@ while IFS= read -r license_name; do
 
     echo "Обработка лицензии: $license_name"
     license_info=$(get_license_info "$license_name")
-    prepare_license_request "$license_name" "$license_info"
+    create_license_script "$license_name" "$license_info"
 done <<< "$licenses"
 
-echo "Обработка завершена" 
+echo "Обработка завершена"
+echo "Скрипты для запросов лицензий созданы в директории: $SCRIPTS_DIR"
+echo "Для выполнения запроса на лицензию запустите соответствующий скрипт из этой директории" 
